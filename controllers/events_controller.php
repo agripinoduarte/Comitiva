@@ -9,16 +9,6 @@ class EventsController extends AppController
 	public $uses = array('Event');
 	
 	public $helpers = array('Formatacao', 'TinyMce.TinyMce');
-
-	public function isAuthorized()
-	{
-		if($this->userLogged == TRUE && $this->params['prefix'] == User::get('type'))
-		{
-			return true;
-		}
-		
-		return false;
-	}
 	
 	/*
 	 *  Ações para rota administrativa
@@ -161,35 +151,6 @@ class EventsController extends AppController
 		$this->set('event', $this->Event->read(null, $id));
 	}
 	
-/*
-	 *  Ações para rota de palestrante
-	 */
-	public function speaker_index()
-	{
-		$this->Event->recursive = 0;
-		
-		// list just root events
-		$this->paginate = array(
-			'conditions' => array(
-				'OR' => array(
-					'Event.parent_id ' => 0,
-					'Event.parent_id IS NULL'
-				)
-			)
-		);
-		
-		$this->set('events', $this->paginate());
-	}
-
-	public function speaker_view($id = null)
-	{
-		if (!$id) 
-		{
-			$this->Session->setFlash(__('Evento inválido', true), 'default', array('class' => 'attention'));
-			$this->redirect(array('action' => 'index'));
-		}
-		$this->set('event', $this->Event->read(null, $id));
-	}
 	/*
 	 * Ações assíncronaas (admin)
 	 */

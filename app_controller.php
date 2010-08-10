@@ -91,6 +91,15 @@ class AppController extends Controller
 		$this->__setErrorLayout();
 	}
 	
+	public function isAuthorized()
+	{
+		if($this->userLogged === TRUE && $this->__checkGroup($this->params['prefix']) )
+		{
+			return true;
+		}
+		
+		return false;
+	}
 	
 	/***************************
 	 * Auxiliar methods
@@ -151,7 +160,9 @@ class AppController extends Controller
 	 */
 	private function __buildMenu()
 	{
-		if(User::get('type') == 'admin')
+		//$groups = json_decode(User::get('groups'), true);
+		
+		if($this->__checkGroup('admin'))
 		{
 			$menu = array(
 				__('Eventos', TRUE) => array(
@@ -187,46 +198,65 @@ class AppController extends Controller
 				__('Sair', TRUE) => '/logout',
 			);
 		}
-		else  if(User::get('type') == 'participant')
+		else if($this->__checkGroup('participant'))
 		{
 			$menu = array(
 				__('Eventos', TRUE) => array(
 					'controller' => 'events',
 					'action' => 'index',
 					'participant' => true
-				),
-				__('Minha conta', TRUE) => array(
-					'controller' => 'users',
-					'action' => 'profile',
-					'participant' => true
-				),
-				__('Sair', TRUE) => '/logout',
+				)
 			);
-		}
-		else
-		{
-			$menu = array(
-				__('Eventos', TRUE) => array(
-					'controller' => 'events',
-					'action' => 'index',
-					'speaker' => true
-				),
-				__('Minha conta', TRUE) => array(
-					'controller' => 'users',
-					'action' => 'profile',
-					'speaker' => true
-				),
-				__('Propostas', TRUE) => array(
-					'controller' => 'proposals',
-					'action' => 'index',
-					'speaker' => true
-				),
-				__('Sair', TRUE) => '/logout',
+			
+			if($this->__checkGroup('speaker'))
+			{
+				$menu[__('Propostas', TRUE)] = array(
+						'controller' => 'proposals',
+						'action' => 'index',
+						'speaker' => true
+				);
+			}
+			else
+			{
+				$menu[__('Propostas', TRUE)] = array(
+						'controller' => 'proposals',
+						'action' => 'add',
+						'participant' => true
+				);
+			}
+			
+			$menu[__('Minha conta', TRUE)] = array(
+				'controller' => 'users',
+				'action' => 'profile',
+				'participant' => true
+			);
+			
+			$menu[__('Sair', TRUE)] = array(
+				'controller' => 'users',	
+				'action' => 'logout',
+				'admin' => false,
+				'participant' => false,
+				'speaker' => false
 			);
 		}
 		
 		$this->set('menuItems', $menu);
 	}
+	
+	protected function __checkGroup($group)
+	{
+		$groups = json_decode(User::get('groups'), true);
+		
+		foreach($groups as $g)
+		{
+			$tmp = str_replace('"', '', $g);
+			
+			if($tmp === $group)
+				return true;
+		}
+		
+		return false;
+	} 
 	
 	/**
 	 * Override Error Handling of CakePHP to use a proper layout file
