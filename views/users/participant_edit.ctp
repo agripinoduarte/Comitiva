@@ -2,19 +2,8 @@
 <?php echo $form->create('User', array('action' => 'edit'));?>
 	<fieldset>
  		<legend><?php __('Editar Dados');?></legend>
- 		<p><?php __('Se desejar você pode alterar abaixo seu tipo de participação')?>
-	<?php
-		echo $form->input('type', array(
-			'label' => __('Tipo', TRUE),
-			'options' => array(
-				0 => '--Selecione--',
-				'participant' => __('Participante',TRUE),
-				'speaker' => __('Palestrante', TRUE)
-				),
-			'selected' => $this->data['User']['type']
-			)
-		);
-		echo $form->input('username', array(
+ <?php
+ 		echo $form->input('username', array(
 			'label' => __('Nome de Usuário',1),
 			'disabled' => true
 		));
