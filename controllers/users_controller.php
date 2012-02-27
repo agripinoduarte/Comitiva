@@ -67,10 +67,18 @@ class UsersController extends AppController
 				)
 			);
 
-			if(is_array($userData) && !empty($userData))
+			if(!empty($userData))
 			{
 				$this->__sendLinkToMail($userData);
 			}
+			else
+			{
+				$this->Session->setFlash(__('Endereço de email não cadastrado', 1), 'default', array('class' => 'attention'));
+			}
+		}
+		else
+		{
+			$this->Session->setFlash(__('Você deve informar seu endereço de email cadastrado', 1), 'default', array('class' => 'attention'));
 		}
 	}
 	
@@ -129,12 +137,10 @@ class UsersController extends AppController
 	{
 		if (!empty($this->data))
 		{
-			// garante que não haja criação forçada de usuário admin
-			$this->data['User']['type'] = 'participant';
-				
-			$this->User->create($this->data);
+			// define grupo inicial do usuário
+			$this->data['User']['groups'] = json_encode(array('participant'));
 			
-			if ($this->__validPassword() && $this->User->save())
+			if($this->User->save($this->data))
 			{
 				if($this->__sendAccountConfirmMail($this->User->read()))
 				{
@@ -170,8 +176,12 @@ class UsersController extends AppController
 			}
 			if($userData['User']['account_validation_token'] == $hash)
 			{
+				$userData['User']['account_validation_token'] = null;
+				$userData['User']['account_validation_expires_at'] = null;
 				$userData['User']['active'] = true;
+				
 				$this->User->save($userData);
+				
 				$this->Session->setFlash(__('Cadastro Verificado com Sucesso!',1), 'default', array('class' => 'success'));
 				$this->redirect('/');
 			}
@@ -224,18 +234,35 @@ class UsersController extends AppController
 	{
 		if (!empty($this->data))
 		{
-			$this->User->create();
-			
 			// default, all admin added user has confirmed
 			$this->data['User']['active'] = TRUE;
 			
-			if ($this->__validPassword() && $this->User->save($this->data))
+			// default group (all user are in participant group
+			$groups = array('participant'); 
+			
+			if(is_array($this->data['User']['groups']) && !empty($this->data['User']['groups']))
+			{
+				$groups = array_merge($groups, $this->data['User']['groups']);
+				$groups = json_encode($this->data['User']['groups']);
+			}
+			
+			$this->data['User']['groups'] = $groups;
+			
+			if ($this->User->save($this->data))
 			{
 				$this->Session->setFlash(__('Usuário adicionado', true), 'default', array('class' => 'success'));
 				$this->redirect(array('action' => 'index'));
 			}
 			else
 			{
+				if(isset($this->data['User']['password']))
+					unset($this->data['User']['password']);
+				
+				if(isset($this->data['User']['password_confirm']))
+					unset($this->data['User']['password_confirm']);
+					
+				$this->data['User']['groups'] = json_decode($groups, true);
+					
 				$this->Session->setFlash(__('Usuário não pode ser salvo. Tente novamente, por favor.', true), 'default', array('class' => 'attention'));
 			}
 		}
@@ -251,6 +278,8 @@ class UsersController extends AppController
 		
 		if (!empty($this->data))
 		{
+			$this->data['User']['groups'] = json_encode($this->data['User']['groups']);
+			
 			if ($this->User->save($this->data))
 			{
 				// se o admin está editando sua própria conta
@@ -265,6 +294,8 @@ class UsersController extends AppController
 			}
 			else
 			{
+				$this->data['User']['groups'] = json_decode($this->data['User']['groups'], true);
+				
 				$this->Session->setFlash(__('Não foi possível salvar a alteração. Tente novamente, por favor.', true), 'default', array('class' => 'attention'));
 			}
 		}
@@ -272,6 +303,7 @@ class UsersController extends AppController
 		if (empty($this->data))
 		{
 			$this->data = $this->User->read(null, $id);
+			$this->data['User']['groups'] = json_decode($this->data['User']['groups']);
 		}
 	}
 
@@ -360,7 +392,7 @@ class UsersController extends AppController
 		$d = new DateTime();
 		$d->modify('+1 day');
 		
-		$token_expires = $d->format(DateTime::ISO8601);  
+		$token_expires = $d->format('Y-m-d H:i:s');  
 
 		$success = $this->User->save(
 			array(
@@ -425,7 +457,7 @@ class UsersController extends AppController
 				'User' => array(
 					'id' => $userData['User']['id'],
 					'account_validation_token' => $token,
-					'account_validation_expires_at' => $d->format(DateTime::ISO8601)
+					'account_validation_expires_at' => $d->format('Y-m-d H:i:s')
 				)
 			)
 		);
@@ -457,18 +489,13 @@ class UsersController extends AppController
 				$this->Session->setFlash(sprintf(__('Não foi possível enviar o email de confirmação da conta para seu endereço. Entre em contato através do email %s para obter ajuda', true), Configure::read('Message.from')), 'default', array('class' => 'attention'));
 			}
 		}
+		else
+		{
+			$this->User->delete($userData['User']['id']);
+			$this->Session->setFlash(sprintf(__('Não foi possível enviar o email de confirmação da conta para seu endereço. Entre em contato através do email %s para obter ajuda', true), Configure::read('Message.from')), 'default', array('class' => 'attention'));
+		}
 		
 		return false;
-	}
-	
-	/**
-	 * Usa os dados vindos de formulário para confirmar se a senha e a confirmação de senha batem
-	 * 
-	 * @return boolean
-	 */
-	private function __validPassword()
-	{
-		return ($this->data['User']['password'] == $this->Auth->password($this->data['User']['password_confirm']));
 	}
 }
 ?>
